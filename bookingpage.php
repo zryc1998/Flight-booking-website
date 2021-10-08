@@ -2,6 +2,7 @@
 include_once "dbconnect.php";
 
 $pdo = get_pdo_instance();
+$submitted = 0;
 
 function get_routeID($pdo, $dep, $arr){
     $sql = "SELECT * FROM Routes WHERE point1=? AND point2=?";
@@ -98,8 +99,8 @@ function delete_booking(PDO $pdo, $bookingID)
     $sql = "DELETE FROM `Bookings` WHERE `bookID` = :bookID";
 
     $statement = $pdo->prepare($sql);
-    $makeToDelete = $bookingID;
-    $statement->bindValue(':bookID', $makeToDelete);
+    $idToDelete = $bookingID;
+    $statement->bindValue(':bookID', $idToDelete);
     $delete = $statement->execute();
 }
 
@@ -145,6 +146,7 @@ function find_booking(PDO $pdo, $customerID)
 $name = $_REQUEST['search-name'];
 $email = $_REQUEST['search-email'];
 $bookingID = $_REQUEST['bookingID'];
+$submitted = $_REQUEST['submitted'];
 
 // echo 'bookingID:'. $bookingID;
 
@@ -193,15 +195,22 @@ $result = find_booking($pdo, $customerID);
 <body>
 
 <div class="site-main" id="sTop">
+
     <div class="site-header">
         <div class="container">
             <div class="row">
                 <div class="col-md-12 text-center">
                     <ul class="social-icons">
-                        <li><a href="https://www.facebook.com/profile.php?id=1073830227" class="fa fa-facebook"></a></li>
-                        <li><a href="https://instagram.com/chao.yue1020?utm_medium=copy_link" class="fa fa-instagram"></a></li>
-                        <li><a href="https://www.linkedin.com/in/chao-yue-48375b21a" class="fa fa-linkedin"></a></li>
+                        <li><form id = "login" method="post">
+                                <input type="text" class="form-group" id="" name="search-name" placeholder="User Name" required>
+                                <input type="email" class="form-group" id="" name="search-email" placeholder="Password" required>
+                                <input type="submit" class="form-group" id="" name="search-submit" value="Login" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
+                                <input type="submit" class="form-group" id="" name="search-submit" value="Register" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
+                                <a style="color: rgb(255,255,255)"> -------------------  </a>
+                                <a style="color: rgba(94,94,94,0.8)"> Not a member? Don't worry, you can still book and check your booking by your name and email. </a>
+                            </form></li>
                     </ul>
+
                 </div>
             </div>
         </div>
@@ -213,6 +222,7 @@ $result = find_booking($pdo, $customerID);
                             <h1>
                                 <a href="index.html">BOOKINGS</a>
                             </h1>
+
                         </div>
                         <div class="col-md-8 col-sm-10 col-xs-4 main-menu text-right">
                             <ul class="menu-first hidden-sm hidden-xs">
@@ -358,6 +368,7 @@ $result = find_booking($pdo, $customerID);
                 <form id = "search-booking" method="post">
                     <input type="text" class="form-group" id="" name="search-name" placeholder="Name" required>
                     <input type="email" class="form-group" id="" name="search-email" placeholder="Email" required>
+                    <input type="hidden" name="submitted" value="1">
                     <input type="submit" class="form-group" id="" name="search-submit" value="Search" style="color:whitesmoke;background: #66512c" >
                 </form>
 
@@ -418,6 +429,7 @@ $result = find_booking($pdo, $customerID);
                                     <input type="hidden" name="bookingID" value="' .$result['bookID'][$j].'">
                                     <input type="hidden" name="search-name" value="'.$result['name'][$j].'">
                                     <input type="hidden" name="search-email" value="'.$result['email'][$j].'">
+                                    <input type="hidden" name="submitted" value="1">
                                     <input type="hidden" name="type" value="all"><td>
                             <button id = "btn-cancel" type="submit" href="#manage" style="background: #ac2925" class="cancellation-btn btn">Cancel</button>
                             </form>
@@ -426,12 +438,14 @@ $result = find_booking($pdo, $customerID);
                     }
                 }
                 echo '</table>';
-                if(sizeof($result)===0 && is_numeric($customerID)){
-                    echo '<p style="color: rgb(139,0,0)">No Booking Record</p>';
-                }
-                if(sizeof($result)===0 && !is_numeric($customerID)){
-                    echo '<p style="color: darkred">Could Not Find Customer</p>';
-                }
+                if ($submitted == 1){
+                    if(sizeof($result)===0 && is_numeric($customerID)){
+                        echo '<p style="color: rgb(139,0,0)">No Booking Record</p>';
+                    }
+                    if(sizeof($result)===0 && !is_numeric($customerID)){
+                        echo '<p style="color: darkred">Could Not Find Customer</p>';
+                    }
+                }else echo '<p style="color: #525252">Please enter your name and email to check</p>';
                 ?>
             </div>
         </div>
