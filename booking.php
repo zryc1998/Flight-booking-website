@@ -1,5 +1,6 @@
 <?php
 include_once 'dbconnect.php';
+include 'bookingpage.php';
 
 $pdo = get_pdo_instance();
 
@@ -24,18 +25,6 @@ function get_customer_id($pdo, $customer, $email){
     return $customerID;
 }
 
-function adjust_seats_number($pdo, $ticket, $depDate, $timeTableID)
-{
-    $sql = "SELECT numPax FROM Schedules WHERE depDate=? AND tID=?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$depDate, $timeTableID]);
-    $numPax =  $stmt->fetch(PDO::FETCH_ASSOC)['numPax']+$ticket;
-
-    $sql2= "UPDATE Schedules SET numPax=? WHERE depDate=? AND tID=?";
-    $stmt2 = $pdo->prepare($sql2);
-    $stmt2->execute([$numPax,$depDate, $timeTableID]);
-
-}
 
 function get_timetable_id(PDO $pdo, $depTime, $routID, $depDay)
 {
@@ -60,49 +49,77 @@ function insert_new_booking_and_return_id(PDO $pdo, $customerID, $scheduleID, $t
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$customerID, $scheduleID, $ticket, $arrTime]);
     return $pdo->lastInsertId();
-
 }
 
 //=====variables
+//$flightNo = $_REQUEST['flightNo'];
+//$depDate = $_REQUEST['depDate'];
+//$depDay = date("D", strtotime($depDate));
+//$depTime =  $_REQUEST['depTime'];
+//$duration = $_REQUEST['duration'];
+//$arrTime =  $_REQUEST['arrTime'];
+//$bookedPrice =  $_REQUEST['price'];
+//$bookedTicket = $_REQUEST['ticket'];
+//$bookedRoutID = $_REQUEST['routeID'];
+
+//$customer = $_REQUEST['customer'];
+//$email = $_REQUEST['email'];
+//$from = $_REQUEST['from'];
+//$to = $_REQUEST['to'];
+
 $flightNo = htmlspecialchars(trim($_POST['flightNo']));
 $depDate = htmlspecialchars(trim($_POST['depDate']));
 $depDay = date("D", strtotime($depDate));
 $depTime =  htmlspecialchars(trim($_POST['depTime']));
 $duration = htmlspecialchars(trim($_POST['duration']));
 $arrTime =  htmlspecialchars(trim($_POST['arrTime']));
-$price =  htmlspecialchars(trim($_POST['price']));
-$ticket = htmlspecialchars(trim($_POST['ticket']));
+$bookedPrice =  htmlspecialchars(trim($_POST['price']));
+$bookedTicket = htmlspecialchars(trim($_POST['ticket']));
+$bookedRoutID = htmlspecialchars(trim($_POST['routeID']));
+
+
 $customer = htmlspecialchars(trim($_POST['customer']));
 $email = htmlspecialchars(trim($_POST['email']));
-$routID = htmlspecialchars(trim($_POST['routeID']));
 $from = htmlspecialchars(trim($_POST['from']));
 $to = htmlspecialchars(trim($_POST['to']));
 
 
+
+
 //====get variables
-$timeTableID = get_timetable_id($pdo, $depTime, $routID, $depDay);
+$timeTableID = get_timetable_id($pdo, $depTime, $bookedRoutID, $depDay);
 $customerID = get_customer_id($pdo, $customer,$email);
 $scheduleID = get_schedule_id($pdo, $depDate, $timeTableID);
-adjust_seats_number($pdo,$ticket,$depDate,$timeTableID);
-$bookingNumber = insert_new_booking_and_return_id($pdo, $customerID, $scheduleID, $ticket, $arrTime);
-json_encode($bookingNumber);
+
+session_start();
+$_SESSION['ticket'] = $bookedTicket;
+$_SESSION['timeTableID'] = $timeTableID;
+$_SESSION['depDate'] = $depDate;
+
+//adjust_seats_number($pdo,$bookedTicket,$depDate,$timeTableID);
+if(!empty($customer) || !empty($email)){
+    $bookingNumber = insert_new_booking_and_return_id($pdo, $customerID, $scheduleID, $bookedTicket, $arrTime);
+    echo '<script>alert("Booking has been made")</script>';
+    header("Refresh:0");
+}
+
 
 //prompts
-echo 'flightNo: '. $flightNo.'<br>';
-echo 'depDate: '. $depDate.'<br>';
-echo 'depDay: '. $depDay.'<br>';
-echo 'depTime: '. $depTime.'<br>';
-echo 'duration: '. $duration.'<br>';
-echo 'arrTime: '. $arrTime.'<br>';
-echo 'price: '. $price.'<br>';
-echo 'ticket: '. $ticket.'<br>';
-echo 'customer: '. $customer.'<br>';
-echo 'email: '. $email.'<br>';
-echo 'customerID: '. $customerID.'<br>';
-echo 'timeTableID: '. $timeTableID.'<br>';
-echo 'routeID: '. $routID.'<br>';
-echo 'scheduleID: '. $scheduleID.'<br>';
-echo 'bookingNumber: '. $bookingNumber.'<br>';
+//echo 'flightNo: '. $flightNo.'<br>';
+//echo 'depDate: '. $depDate.'<br>';
+//echo 'depDay: '. $depDay.'<br>';
+//echo 'depTime: '. $depTime.'<br>';
+//echo 'duration: '. $duration.'<br>';
+//echo 'arrTime: '. $arrTime.'<br>';
+//echo 'price: '. $bookedPrice.'<br>';
+//echo 'ticket: '. $bookedTicket.'<br>';
+//echo 'customer: '. $customer.'<br>';
+//echo 'email: '. $email.'<br>';
+//echo 'customerID: '. $customerID.'<br>';
+//echo 'timeTableID: '. $timeTableID.'<br>';
+//echo 'routeID: '. $bookedRoutID.'<br>';
+//echo 'scheduleID: '. $scheduleID.'<br>';
+//echo 'bookingNumber: '. $bookingNumber.'<br>';
 
 
 

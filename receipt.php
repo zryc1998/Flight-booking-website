@@ -52,7 +52,7 @@ echo'
 <form id = "go-back" action="bookingpage.php" method="post">
     <input type="hidden" name="search-name" value="'.$name.'">
     <input type="hidden" name="search-email" value="'.$email.'">
-    <BUTTON href="javascript:;" onclick="window.print()" class="btn form-group">Print</BUTTON>
+    <BUTTON href="javascript:;" onclick="window.print()"  style="background: #ac2925" class="btn form-group">Print</BUTTON>
     <BUTTON id = "back"  type="submit" class="btn form-group">Go Back</BUTTON>
     <input type="hidden" name="type" value="all">
 </form>';

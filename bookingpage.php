@@ -1,5 +1,21 @@
 <?php
 include_once "dbconnect.php";
+session_start();
+$startDate = $_SESSION['start'];
+$endDate = $_SESSION['end'];
+$dep = $_SESSION['from'];
+$arr = $_SESSION['to'];
+$numOfPassenger=$_SESSION['passenger'];
+
+$name = $_SESSION['name'];
+$email = $_SESSION['email'];
+$isLoggedIn = $_SESSION['isLoggedIn'];
+
+//====adjust seat number after booking
+$bookedTicket= $_SESSION['ticket'];
+$timeTableID= $_SESSION['timeTableID'];
+$depDate= $_SESSION['depDate'];
+
 
 $pdo = get_pdo_instance();
 $submitted = 0;
@@ -57,14 +73,57 @@ function get_arrival_time($depTime, $dTimeZone, $flightTime, $aTimeZone, $depDat
 
 }
 
+function get_route_result(PDO $pdo, $rID, $startDate, $endDate, $dTimeZone, $aTimeZone)
+{
+
+    $sql = "SELECT * FROM Schedules 
+    JOIN Timetable ON Schedules.tID = Timetable.tID  
+    JOIN Routes R on R.routeID = Timetable.rID
+    WHERE Schedules.rID=? AND depDate>=? AND depDate<=?";
+    $stmt = $pdo->prepare($sql);
+    $stmt -> execute([$rID, $startDate, $endDate]);
+    $i = 0;
+    $result = array();
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+
+        $result['depDate'][$i]          = $row['depDate'];
+//        $dstr = $date->format("D d M Y");
+        $result['flightNo'][$i]         = $row['flightNo'];
+        $result['depTime'][$i]          = $row['depTime'];
+        $result['duration'][$i]         = $row['flightTime'];
+
+        $seats = $row['maxPax'] - $row['numPax'];
+        if ($seats < 0) $seats = 0;
+        $result['seats'][$i]            = $seats;
+
+        try {
+            $result['arrTime'][$i] = get_arrival_time($row['depTime'], $dTimeZone, $row['flightTime'], $aTimeZone, $row['depDate'])
+                ->format('D d M H:i:s');
+        } catch (Exception $e) {
+        }
+
+        $result['price'][$i] = $row['price'];
+        $result['routID'][$i] = $row['rID'];
+        $i++;
+//        $sqlDepDate = $date->format('Y-m-d');
+    }
+    return $result;
+}
+
+function adjust_seats_number($pdo, $ticket, $depDate, $timeTableID)
+{
+    $sql = "SELECT numPax FROM Schedules WHERE depDate=? AND tID=?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$depDate, $timeTableID]);
+    $numPax =  $stmt->fetch(PDO::FETCH_ASSOC)['numPax']+$ticket;
+
+    $sql2= "UPDATE Schedules SET numPax=? WHERE depDate=? AND tID=?";
+    $stmt2 = $pdo->prepare($sql2);
+    $stmt2->execute([$numPax,$depDate, $timeTableID]);
+
+}
+
 $airlineCode = "DF";
-
-$startDate = htmlspecialchars(trim($_POST['start']));
-$endDate = htmlspecialchars(trim($_POST['end']));
-$dep = htmlspecialchars(trim($_POST['from']));
-$arr = htmlspecialchars(trim($_POST['to']));
-$numOfPassenger = htmlspecialchars(trim($_POST['passenger']));
-
 
 $dAirport = get_airport_name($pdo, $dep);
 $aAirport = get_airport_name($pdo, $arr);
@@ -77,12 +136,9 @@ $rID = get_routeID($pdo, $dep, $arr);
 $flightTime = get_flight_time($pdo, $rID);
 $routePrice = get_price($pdo, $rID);
 
+adjust_seats_number($pdo,$bookedTicket,$depDate,$timeTableID);
 
-$sql = "SELECT * FROM Schedules INNER JOIN Timetable ON Schedules.tID = Timetable.tID WHERE Schedules.rID=? AND depDate>=? AND depDate<=?";
-$stmt = $pdo->prepare($sql);
-$stmt -> execute([$rID, $startDate, $endDate]);
-
-$i = 0;
+$routeResult = get_route_result($pdo, $rID, $startDate,$endDate,$dTimeZone,$aTimeZone);
 
 
 //====search order
@@ -143,8 +199,7 @@ function find_booking(PDO $pdo, $customerID)
 //$email = htmlspecialchars(trim($_POST['search-email']));
 //$bookingID = htmlspecialchars(trim($_POST['bookingID']));
 
-$name = $_REQUEST['search-name'];
-$email = $_REQUEST['search-email'];
+
 $bookingID = $_REQUEST['bookingID'];
 $submitted = $_REQUEST['submitted'];
 
@@ -201,16 +256,31 @@ $result = find_booking($pdo, $customerID);
             <div class="row">
                 <div class="col-md-12 text-center">
                     <ul class="social-icons">
-                        <li><form id = "login" method="post">
-                                <input type="text" class="form-group" id="" name="search-name" placeholder="User Name" required>
-                                <input type="email" class="form-group" id="" name="search-email" placeholder="Password" required>
+                        <?php
+                        if ($isLoggedIn == 1) {
+                            echo '
+                            <li><form id = "logout" method="post" action="">
+                                <a style="color: rgba(94,94,94,0.8)">Welcome ' . $name . ' </a>
+                                    <input type="hidden" name="login-name" value="">
+                                    <input type="hidden" name="login-email" value="">
+                                <input type="submit" class="form-group" id="" name="search-submit" value="Logout" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
+                         </form></li>
+                        ';
+                        }
+                        else if($isLoggedIn == 0){
+                            echo '
+                                <li><form id = "login" method="post" action="login.php">
+                                <input type="text" class="form-group" id="name" name="login-name" placeholder="Name" required>
+                                <input type="email" class="form-group" id="email1" name="login-email" placeholder="E-mail" required>
+                                <input type="email" class="form-group" id="email2" name="login-email-confirm" placeholder="Confirm Your E-mail" required>
                                 <input type="submit" class="form-group" id="" name="search-submit" value="Login" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
-                                <input type="submit" class="form-group" id="" name="search-submit" value="Register" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
-                                <a style="color: rgb(255,255,255)"> -------------------  </a>
-                                <a style="color: rgba(94,94,94,0.8)"> Not a member? Don't worry, you can still book and check your booking by your name and email. </a>
-                            </form></li>
-                    </ul>
+                                <a style="color: rgba(94,94,94,0.8)">Not a member? No worries, once you hve booked a flight, you will automatically become one. </a>
+                         </form></li>
+                        ';
+                        }
+                        ?>
 
+                    </ul>
                 </div>
             </div>
         </div>
@@ -252,100 +322,105 @@ $result = find_booking($pdo, $customerID);
             <div class="service-item " id="service-1">
                 <div class="inner-service heading-section col-md-12 text-center">
                     <?php
-                    if ($rID == null && $startDate != null){
+                    if (sizeof($rID)  == 0 && $startDate != null){
                         echo "<h2>No Available Flight</h3>";
                         echo "<p>$startDate to $endDate</p>";
                         echo "<p></p>";
-                        echo "<img href='#mangage' class='inner-service heading-section col-md-12 text-center' src='./images/slide5-1.jpg' alt='Please Re-search'>";
+                        echo "<a href='index.html' ><img class='inner-service heading-section col-md-12 text-center' src='./images/slide5-1.jpg' alt='Please Re-search'></a>";
                     }
                     else if ($startDate == null || $endDate == null){
                         echo "<h2>Looking for a flight? Please go to home page</h3>";
                         echo "<p>or</p>";
                         echo "<p>Click 'manage your booking' for booking record</p>";
                         echo "<p></p>";
-                        echo "<img href='#mangage' class='inner-service heading-section col-md-12 text-center' src='./images/slide8-1.jpg' alt='Re-start searching of manage your booking'>";
-                    }else {
+                        echo "<a href='index.html' ><img class='inner-service heading-section col-md-12 text-center' src='./images/slide8-1.jpg' alt='Re-start searching of manage your booking'></a>";
+                        }
+                    else if(sizeof($rID) > 0 && $startDate != null && $isLoggedIn == 0 ){
                         echo "<h2>$dAirport --to-- $aAirport</h3>";
                         echo "<p></p>";
                         echo "<p>$startDate to $endDate</p>";
-                        echo "<p>*Please leave your name and email before booking</p>";
+                        echo '<p style="color: darkred; font-weight: bold">*Please log in before booking</p>';
                         echo '
-                                    </div>
-                                    <table id="table" class="col-md-12 col-sm-6 table table-bordered table-striped">
-                                        <tr>
-                                            <th>Flight No.</th>
-                                            <th>Departure Date</th>
-                                            <th>Departure Time</th>
-                                            <th>Duration</th>
-                                            <th>Arrival Time</th>
-                                            <th>Available Seats</th>
-                                            <th>Price</th>
-                                            <th>Book</th>
-                                            <th>Your Detail</th>';
+                            </div>
+                        <table id="table" class="col-md-12 col-sm-6 table table-bordered table-striped">
+                            <tr>
+                                <th>Flight No.</th>
+                                <th>Departure Date</th>
+                                <th>Departure Time</th>
+                                <th>Duration</th>
+                                <th>Arrival Time</th>
+                                <th>Available Seats</th>
+                                <th>Price</th>
+                                <th>Book</th>
+                            </tr>
+                        ';
+
+                    }else if (sizeof($rID) > 0 && $startDate != null && $isLoggedIn == 1 ){
+                        echo "<h2>$dAirport --to-- $aAirport</h3>";
+                        echo "<p></p>";
+                        echo "<p>$startDate to $endDate</p>";
+                        echo "<p>*Please choose your flight</p>";
+                        echo '
+                        </div>
+                        <table id="table" class="col-md-12 col-sm-6 table table-bordered table-striped">
+                        
+                            <tr>
+                                <th>Flight No.</th>
+                                <th>Departure Date</th>
+                                <th>Departure Time</th>
+                                <th>Duration</th>
+                                <th>Arrival Time</th>
+                                <th>Available Seats</th>
+                                <th>Price</th>
+                                <th>Book</th>
+                            </tr>
+                        ';
                     }
-
-                    $index = 0;
-                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)){
-                        try {
-                            $date = new DateTime($row['depDate']);
-                        } catch (Exception $e) {
-                        }
-                        $depDate = $row['depDate'];
-                        $dstr = $date -> format ("D d M Y");
-                        $flightNo = $airlineCode . $row['flightNo'];
-                        $depTime = $row['depTime'];
-                        $duration = $flightTime."hr";
-                        $seats = $row['maxPax'] - $row['numPax'];
-                        if ($seats < 0) $seats = 0;
-                        try {
-                            $arrivalTime = get_arrival_time($depTime, $dTimeZone, $flightTime, $aTimeZone, $depDate)
-                                ->format('D d M H:i:s');
-                        } catch (Exception $e) {
-                        }
-                        $price = "$ ".$routePrice;
-                        $str = "<tr><td>$flightNo<td>$dstr<td>$depTime<td>$duration<td>$arrivalTime<td>$seats<td>$price<td>";
-                        echo $str;
-
-                        $schedule['index'][$i] = $i;
-                        $schedule['flightNo'][$i] = $flightNo;
-                        $schedule['depDate'][$i] = $dstr;
-                        $schedule['depTime'][$i] = $depTime;
-                        $schedule['duration'][$i] = $duration;
-                        $schedule['arrTime'][$i] = $arrivalTime;
-                        $schedule['seats'][$i] = $seats;
-                        $schedule['price'][$i] = $routePrice;
-
-                        $availableSeats = array();
-                        for ($j = 1; $j <= $seats; $j++) array_push($availableSeats, $j);
-                        $sqlDepDate = $date -> format('Y-m-d');
-
-                        if ($seats>0){
+                    $i = 0;
+                    foreach ($routeResult['depDate'] as $item){
+                        echo '<tr>
+                            <td>'.$airlineCode.''.$routeResult['flightNo'][$i].'</td>
+                            <td>'.$routeResult['depDate'][$i].'</td>
+                            <td>'.$routeResult['depTime'][$i].'</td>
+                            <td>'.$routeResult['duration'][$i].' hr</td>
+                            <td>'.$routeResult['arrTime'][$i].'</td>
+                            <td>'.$routeResult['seats'][$i].'</td>
+                            <td>$'.$routeResult['price'][$i].'</td>
+                            ';
+                        if ($routeResult['seats'][$i]>0){
                             echo '
-                                <form id = "bookingform" action="bookingpage.php" method="post">
-                                    <input type="hidden" name="flightNo" value="'.$flightNo.'">
-                                    <input type="hidden" name="depDate" value="'.$sqlDepDate.'">
-                                    <input type="hidden" name="depTime" value="'.$depTime.'">
-                                    <input type="hidden" name="duration" value="'.$duration.'">
-                                    <input type="hidden" name="arrTime" value="'.$arrivalTime.'">
-                                    <input type="hidden" name="price" value="'.$routePrice.'">
-                                    <input type="hidden" name="routeID" value="'.$rID.'">
-                                    <input type="hidden" name="from" value="'.$dep.'">
-                                    <input type="hidden" name="to" value="'.$arr.'">
-                                    <input type="hidden" name="type" value="all">
-                                        <select id="ticket" name= "ticket" class="frm-field" required >';
-                            for($k = 0; $k < sizeof($availableSeats); $k++) {
+                            <form id = "bookingform" action="booking.php" method="post">
+                                <input type="hidden" name="flightNo" value="'.$routeResult['flightNo'][$i].'">
+                                <input type="hidden" name="depDate" value="'.$routeResult['depDate'][$i].'">
+                                <input type="hidden" name="depTime" value="'.$routeResult['depTime'][$i].'">
+                                <input type="hidden" name="duration" value="'.$routeResult['duration'][$i].'">
+                                <input type="hidden" name="arrTime" value="'.$routeResult['arrTime'][$i].'">
+                                <input type="hidden" name="price" value="'.$routeResult['price'][$i].'">
+                                <input type="hidden" name="routeID" value="'.$routeResult['routID'][$i].'">
+                                <input type="hidden" name="from" value="'.$dep.'">
+                                <input type="hidden" name="to" value="'.$arr.'">
+                                <input type="hidden" name="type" value="all">
+                                <td><select id="ticket" name= "ticket" class="frm-field" required >
+                                ';
+                            for($k = 1; $k <= $routeResult['seats'][$i]; $k++) {
                                 echo '
-                                <option value ="' . $availableSeats[$k] . '">' . $availableSeats[$k] . '</option>';
+                                <option value ="' . $k. '">' . $k. '</option>
+                                ';
                             }
-                            echo '</select>
-                            <button id = "submitbooking" type="submit" href="#booking" class="btn">Book</button><td>
-                            <input type="text" class="form-control-info" id="customer" name="customer" placeholder="Name" required>
-                            <input type="email" class="form-control-info" id="email" name="email" placeholder="Email" required>
-                            <input type="email" class="form-control-info" id="email-confirm" name="email-confirm" placeholder="Confirm Your Email" required">
-                            </form>
-                            </td>';
+                                echo ' </select>
+                                <input type="hidden" id="isLoggedIn" name="email" value ="'.$isLoggedIn.'">
+                                <input type="hidden" id="customer" name="customer" value ="'.$name.'">
+                                <input type="hidden" id="email" name="email" value ="'.$email.'">';
+                            if($isLoggedIn == 1){
+                                echo '<button id = "submitbooking" type="submit" href="#booking" class="btn">Book</button>';
+                            }
+                            else {
+                                echo '<button id = "submitbooking" type="submit" href="#booking" class="btn" disabled>Book</button>';
+                            }
+                            echo '</form>
+                        </td>';
                         }
-                        else echo '<p id = "sold out">SOLD OUT</p><td></td>';
+                        else echo '<td><p id = "sold out">SOLD OUT</p></td>';
                         $i++;
                     }
                     ?>
@@ -363,14 +438,21 @@ $result = find_booking($pdo, $customerID);
             <div class="service-item " id="service-2">
                 <div class="inner-service heading-section col-md-12 text-center">
                     <h2>manage your booking</h2>
-                    <p>search your booking by entering your name and email</p>
-                </div> <!-- /#service-1 -->
-                <form id = "search-booking" method="post">
-                    <input type="text" class="form-group" id="" name="search-name" placeholder="Name" required>
-                    <input type="email" class="form-group" id="" name="search-email" placeholder="Email" required>
-                    <input type="hidden" name="submitted" value="1">
-                    <input type="submit" class="form-group" id="" name="search-submit" value="Search" style="color:whitesmoke;background: #66512c" >
-                </form>
+                    <p>print out or cancel your booking</p>
+                </div>
+                    <a style="color: rgba(94,94,94,0.8)">Having trouble finding your booking? Why don't push the button here? </a>
+                    <a href = "bookingpage.php">
+                        <input type="submit" class="form-group" name="search-submit" value="Refresh Booking"
+                               style="color:whitesmoke;background: #66512c"/>
+                    <br></a>
+                <?php
+//                if ($isLoggedIn == 1 && sizeof($result) > 0)
+//                    '<a style="color: #66512c; font-weight: bold;">Booking Record for: '.$name.'<br> Email: '.$email.'</a>';
+                if ($isLoggedIn == 1 && sizeof($result) == 0)
+                echo '<a style="color: #66512c; font-weight: bold;">No Booking Record</a>';
+                if ($isLoggedIn == 0 )
+                echo '<a style="color: #66512c; font-weight: bold;">Please Login First</a>';
+                ?>
 
                 <?php
                 $j=0;
@@ -425,7 +507,7 @@ $result = find_booking($pdo, $customerID);
                                     <input type="hidden" name="type" value="all">
                                     <td><button class="btn" type="submit" href="receipt.php" id="reciept">View</button>
                             </form>
-                            <form id = "cancellation" action="" method="post">
+                            <form id = "cancellation" action="bookingpage.php" method="post">
                                     <input type="hidden" name="bookingID" value="' .$result['bookID'][$j].'">
                                     <input type="hidden" name="search-name" value="'.$result['name'][$j].'">
                                     <input type="hidden" name="search-email" value="'.$result['email'][$j].'">
@@ -437,15 +519,15 @@ $result = find_booking($pdo, $customerID);
                         $j++;
                     }
                 }
-                echo '</table>';
-                if ($submitted == 1){
-                    if(sizeof($result)===0 && is_numeric($customerID)){
-                        echo '<p style="color: rgb(139,0,0)">No Booking Record</p>';
-                    }
-                    if(sizeof($result)===0 && !is_numeric($customerID)){
-                        echo '<p style="color: darkred">Could Not Find Customer</p>';
-                    }
-                }else echo '<p style="color: #525252">Please enter your name and email to check</p>';
+               echo '</table>';
+//                if ($submitted == 1){
+//                    if(sizeof($result)===0 && is_numeric($customerID)){
+//                        echo '<p style="color: rgb(139,0,0)">No Booking Record</p>';
+//                    }
+//                    if(sizeof($result)===0 && !is_numeric($customerID)){
+//                        echo '<p style="color: darkred">Could Not Find Customer</p>';
+//                    }
+//                }else echo '<p style="color: #525252">Please enter your name and email to check</p>';
                 ?>
             </div>
         </div>

@@ -18,14 +18,14 @@ $(document).ready(function() {
     }
 
     //=====submit form
-    $("#submit").on('submit', function(e) {
-            $.ajax({
-                type: "POST",
-                url: "bookingpage.php",
-                data: $(e.target).serialize(),
-                dataType: 'json',
-                success: function (json) {
-                }
-            });
+    $("#condition").on('submit', function(e) {
+        $.ajax({
+            type: "POST",
+            url: "session.php",
+            data: $(e.target).serialize(),
+            dataType: 'json',
+            success: function (json) {
+            }
+        });
     });
 });
