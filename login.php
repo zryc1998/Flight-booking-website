@@ -16,9 +16,6 @@ $_SESSION['email'] = $loginEmail;
 $_SESSION['isLoggedIn'] = $isLoggedIn;
 
 
-//echo '<script>alert(" WELCOME ' . $loginName . '")</script>';
-//echo '<script>alert(" PLEASE REMEMBER YOUR: \n LOGIN NAME: ' . $loginName . '\n E-MAIL: ' . $loginEmail . '")</script>';
-
 
 
 

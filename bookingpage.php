@@ -11,12 +11,6 @@ $name = $_SESSION['name'];
 $email = $_SESSION['email'];
 $isLoggedIn = $_SESSION['isLoggedIn'];
 
-//====adjust seat number after booking
-$bookedTicket= $_SESSION['ticket'];
-$timeTableID= $_SESSION['timeTableID'];
-$depDate= $_SESSION['depDate'];
-
-
 $pdo = get_pdo_instance();
 $submitted = 0;
 
@@ -68,7 +62,6 @@ function get_arrival_time($depTime, $dTimeZone, $flightTime, $aTimeZone, $depDat
     $dt->format('Y-m-d H:i:s');
     $arrTime = $dt->add(new DateInterval('PT'.$minute.'M'));
     $arrTime->setTimezone(new DateTimeZone($aTimeZone));
-//    return $arrTime->format('D d M H:i:s');
     return $arrTime->setTimezone(new DateTimeZone($aTimeZone));
 
 }
@@ -105,22 +98,8 @@ function get_route_result(PDO $pdo, $rID, $startDate, $endDate, $dTimeZone, $aTi
         $result['price'][$i] = $row['price'];
         $result['routID'][$i] = $row['rID'];
         $i++;
-//        $sqlDepDate = $date->format('Y-m-d');
     }
     return $result;
-}
-
-function adjust_seats_number($pdo, $ticket, $depDate, $timeTableID)
-{
-    $sql = "SELECT numPax FROM Schedules WHERE depDate=? AND tID=?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$depDate, $timeTableID]);
-    $numPax =  $stmt->fetch(PDO::FETCH_ASSOC)['numPax']+$ticket;
-
-    $sql2= "UPDATE Schedules SET numPax=? WHERE depDate=? AND tID=?";
-    $stmt2 = $pdo->prepare($sql2);
-    $stmt2->execute([$numPax,$depDate, $timeTableID]);
-
 }
 
 $airlineCode = "DF";
@@ -136,7 +115,6 @@ $rID = get_routeID($pdo, $dep, $arr);
 $flightTime = get_flight_time($pdo, $rID);
 $routePrice = get_price($pdo, $rID);
 
-adjust_seats_number($pdo,$bookedTicket,$depDate,$timeTableID);
 
 $routeResult = get_route_result($pdo, $rID, $startDate,$endDate,$dTimeZone,$aTimeZone);
 
@@ -195,15 +173,9 @@ function find_booking(PDO $pdo, $customerID)
     return $result;
 }
 
-//$name = htmlspecialchars(trim($_POST['search-name']));
-//$email = htmlspecialchars(trim($_POST['search-email']));
-//$bookingID = htmlspecialchars(trim($_POST['bookingID']));
-
 
 $bookingID = $_REQUEST['bookingID'];
 $submitted = $_REQUEST['submitted'];
-
-// echo 'bookingID:'. $bookingID;
 
 delete_booking($pdo, $bookingID);
 
@@ -214,14 +186,6 @@ else $isExisted = 0;
 
 
 $result = find_booking($pdo, $customerID);
-
-
-
-//echo 'isExisted: '. $isExisted.'<br>';
-//echo 'customerID: '. $customerID.'<br>';
-//header('Content-type:application/json;charset=utf-8');
-// echo json_encode($result, JSON_PRETTY_PRINT);
-
 
 ?>
 
@@ -446,8 +410,6 @@ $result = find_booking($pdo, $customerID);
                                style="color:whitesmoke;background: #66512c"/>
                     <br></a>
                 <?php
-//                if ($isLoggedIn == 1 && sizeof($result) > 0)
-//                    '<a style="color: #66512c; font-weight: bold;">Booking Record for: '.$name.'<br> Email: '.$email.'</a>';
                 if ($isLoggedIn == 1 && sizeof($result) == 0)
                 echo '<a style="color: #66512c; font-weight: bold;">No Booking Record</a>';
                 if ($isLoggedIn == 0 )
@@ -520,14 +482,6 @@ $result = find_booking($pdo, $customerID);
                     }
                 }
                echo '</table>';
-//                if ($submitted == 1){
-//                    if(sizeof($result)===0 && is_numeric($customerID)){
-//                        echo '<p style="color: rgb(139,0,0)">No Booking Record</p>';
-//                    }
-//                    if(sizeof($result)===0 && !is_numeric($customerID)){
-//                        echo '<p style="color: darkred">Could Not Find Customer</p>';
-//                    }
-//                }else echo '<p style="color: #525252">Please enter your name and email to check</p>';
                 ?>
             </div>
         </div>

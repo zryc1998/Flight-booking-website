@@ -1,7 +1,7 @@
 <?php
+include_once 'dbconnect.php';
 session_abort();
 session_start();
-include_once 'dbconnect.php';
 $pdo = get_pdo_instance();
 
 $startDate = htmlspecialchars(trim($_POST['start']));

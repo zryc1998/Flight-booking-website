@@ -1,8 +1,8 @@
 <?php
-include_once "dbconnect.php";
+//include_once "dbconnect.php";
 
 //====this file for testing functions
-$pdo = get_pdo_instance();
+//$pdo = get_pdo_instance();
 //
 //function get_time_zone($pdo, $destCode){
 //    $sql = "SELECT * FROM Destinations WHERE code=?";
