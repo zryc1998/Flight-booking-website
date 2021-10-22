@@ -3,31 +3,30 @@ $(document).ready(function() {
     //====submit bookings
     $("#bookingform").on('submit', function(e) {
 
-            $.ajax({
-                type: "POST",
-                url: "booking.php",
-                data: $(e.target).serialize(),
-                dataType: 'json',
-                success: function (json) {
-                }
-            });
+        $.ajax({
+            type: "POST",
+            url: "bookingpage.php",
+            data: $(e.target).serialize(),
+            dataType: 'json',
+            success: function (json) {
+            }
+        });
 
         // window.location.reload();
         // return false;
     });
 
-
     // ====search bookings
     $("#search-booking").on('submit', function(e) {
 
-        $.ajax({
-                type: "POST",
-                url: "bookingpage.php",
-                data: $(e.target).serialize(),
-                dataType: 'json',
-                success: function (json) {
-                }
-            });
+    $.ajax({
+            type: "POST",
+            url: "bookingpage.php",
+            data: $(e.target).serialize(),
+            dataType: 'json',
+            success: function (json) {
+            }
+        });
     });
 
     $("#login").on('submit', function(e) {
@@ -63,7 +62,6 @@ $(document).ready(function() {
         });
         alert("You have logged out")
     });
-
 });
 
 // if(!empty($customer) || !empty($email)){

@@ -1,4 +1,5 @@
 <?php
+session_start();
 include_once 'dbconnect.php';
 include 'bookingpage.php';
 
@@ -82,8 +83,6 @@ $from = htmlspecialchars(trim($_POST['from']));
 $to = htmlspecialchars(trim($_POST['to']));
 
 
-
-
 //====get variables
 $timeTableID = get_timetable_id($pdo, $depTime, $bookedRoutID, $depDay);
 $customerID = get_customer_id($pdo, $customer,$email);
@@ -93,7 +92,7 @@ adjust_seats_number($pdo,$bookedTicket,$depDate,$timeTableID);
 if(!empty($customer) || !empty($email)){
     $bookingNumber = insert_new_booking_and_return_id($pdo, $customerID, $scheduleID, $bookedTicket, $arrTime);
     echo '<script>alert("Booking has been made")</script>';
-    header("Refresh:0");
+    header("location: bookingpage.php");
 }
 
 

@@ -1,6 +1,7 @@
 <?php
 include_once "dbconnect.php";
 session_start();
+
 $startDate = $_SESSION['start'];
 $endDate = $_SESSION['end'];
 $dep = $_SESSION['from'];
@@ -116,7 +117,7 @@ $flightTime = get_flight_time($pdo, $rID);
 $routePrice = get_price($pdo, $rID);
 
 
-$routeResult = get_route_result($pdo, $rID, $startDate,$endDate,$dTimeZone,$aTimeZone);
+$routeResult = get_route_result($pdo, $rID, $startDate, $endDate, $dTimeZone, $aTimeZone);
 
 
 //====search order
@@ -130,12 +131,18 @@ function find_customer_id(PDO $pdo, $name, $email)
 
 function delete_booking(PDO $pdo, $bookingID)
 {
-    $sql = "DELETE FROM `Bookings` WHERE `bookID` = :bookID";
+    $sql1 = "SELECT schedID FROM Bookings WHERE bookID=?";
+    $stmt1 = $pdo->prepare($sql1);
+    $stmt1->execute([$bookingID]);
+    $schedule = $stmt1->fetch(PDO::FETCH_ASSOC)['schedID'];
 
+    $sql = "DELETE FROM `Bookings` WHERE `bookID` = :bookID";
     $statement = $pdo->prepare($sql);
     $idToDelete = $bookingID;
     $statement->bindValue(':bookID', $idToDelete);
-    $delete = $statement->execute();
+    $statement->execute();
+
+    return $schedule;
 }
 
 function find_booking(PDO $pdo, $customerID)
@@ -173,19 +180,34 @@ function find_booking(PDO $pdo, $customerID)
     return $result;
 }
 
+function readjust_seats_number($pdo, $schedID, $ticket)
+{
+    $sql = "SELECT numPax FROM Schedules WHERE schedID=?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$schedID]);
+    $numPax =  $stmt->fetch(PDO::FETCH_ASSOC)['numPax']-$ticket;
+
+    $sql2= "UPDATE Schedules SET numPax=? WHERE schedID=?";
+    $stmt2 = $pdo->prepare($sql2);
+    $stmt2->execute([$numPax,$schedID]);
+}
+
 
 $bookingID = $_REQUEST['bookingID'];
 $submitted = $_REQUEST['submitted'];
+$deletedTicket = $_REQUEST['ticket'];
 
-delete_booking($pdo, $bookingID);
+$deletedSchedID = delete_booking($pdo, $bookingID);
 
 $customerID = find_customer_id($pdo, $name, $email);
+
+readjust_seats_number($pdo, $deletedSchedID, $deletedTicket);
 
 if (is_numeric($customerID)) $isExisted = true;
 else $isExisted = 0;
 
-
 $result = find_booking($pdo, $customerID);
+
 
 ?>
 
@@ -238,7 +260,7 @@ $result = find_booking($pdo, $customerID);
                                 <input type="email" class="form-group" id="email1" name="login-email" placeholder="E-mail" required>
                                 <input type="email" class="form-group" id="email2" name="login-email-confirm" placeholder="Confirm Your E-mail" required>
                                 <input type="submit" class="form-group" id="" name="search-submit" value="Login" style="color:whitesmoke;background: rgba(51,73,95,0.86)" >
-                                <a style="color: rgba(94,94,94,0.8)">Not a member? No worries, once you hve booked a flight, you will automatically become one. </a>
+                                <a style="font-size:small; color: rgba(94,94,94,0.8)">Not a member? No worries, once you have booked a flight, you will automatically become one. </a>
                          </form></li>
                         ';
                         }
@@ -306,6 +328,11 @@ $result = find_booking($pdo, $customerID);
                         echo '<p style="color: darkred; font-weight: bold">*Please log in before booking</p>';
                         echo '
                             </div>
+                             <a style="color: rgba(94,94,94,0.8)">Available tickets are low? Refresh to see if you can get lucky </a>
+                             <a href = "booking.php">
+                                <input type="submit" class="form-group" name="search-submit" value="Refresh Result"
+                               style="color:whitesmoke;background: #66512c"/>
+                            <br></a>
                         <table id="table" class="col-md-12 col-sm-6 table table-bordered table-striped">
                             <tr>
                                 <th>Flight No.</th>
@@ -405,7 +432,7 @@ $result = find_booking($pdo, $customerID);
                     <p>print out or cancel your booking</p>
                 </div>
                     <a style="color: rgba(94,94,94,0.8)">Having trouble finding your booking? Why don't push the button here? </a>
-                    <a href = "bookingpage.php">
+                    <a href = "booking.php">
                         <input type="submit" class="form-group" name="search-submit" value="Refresh Booking"
                                style="color:whitesmoke;background: #66512c"/>
                     <br></a>
@@ -470,6 +497,7 @@ $result = find_booking($pdo, $customerID);
                                     <td><button class="btn" type="submit" href="receipt.php" id="reciept">View</button>
                             </form>
                             <form id = "cancellation" action="bookingpage.php" method="post">
+                             <input type="hidden" name="ticket" value="' .$result['ticket'][$j].'">
                                     <input type="hidden" name="bookingID" value="' .$result['bookID'][$j].'">
                                     <input type="hidden" name="search-name" value="'.$result['name'][$j].'">
                                     <input type="hidden" name="search-email" value="'.$result['email'][$j].'">
